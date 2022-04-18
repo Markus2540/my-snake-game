@@ -1,0 +1,537 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Snake</title>
+    <meta name="author" content="Markus2540" />
+    <meta name="description" content="My snake challenge.">
+    <style>
+        /* {
+            box-sizing: border-box;
+        }*/
+        h1 {
+            text-align: center;
+        }
+        .flex-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: blue;
+            height: 800px;
+            width: 800px;
+            margin: auto;
+        }
+        canvas {
+            border: 5px ridge gray;
+            background-color: black;
+        }
+        .flex-container div > p {
+            text-align: center;
+            color: white;
+        }
+    </style>
+</head>
+<body onload="draw();">
+    <h1>Snake</h1>
+
+    <div class="flex-container">
+        <div>
+            <canvas id="gamearea" width="600" height="600">There should be a canvas in here!</canvas>
+            <p id="scorecounter">Score: </p>
+        </div>
+        
+    </div>
+    <script>
+        function draw() {
+            const canvas = document.getElementById('gamearea');
+            const scoreCounter = document.getElementById('scorecounter');
+
+            if (canvas.getContext) {
+                const ctx = canvas.getContext('2d');
+
+                let isInTitleScreen = true;
+                let isInGame = false;
+                let isPaused = false;
+                let score = 0;
+                let snake = [];
+                let nextHeading = 'right';
+                let lengthOfSnake, theDot;
+                let collisionDetected = false;
+                let speed;
+
+                function startGame() {
+                    collisionDetected = false;
+                    isInGame = true;
+                    snake = [];
+                    let snakeHead = new SnakePiece(280, 300, 'right', 'head');
+                    let snakePiece1 = new SnakePiece(270, 300, 'none', 'body');
+                    let snakePieceTail = new SnakePiece(260, 300, 'none', 'tail');
+                    snake.push(snakeHead, snakePiece1, snakePieceTail);
+                    nextHeading = 'right';
+                    createTheDot();
+                    score = 0;
+
+                    speed = setInterval(moveSnakeLoop, 500);
+                }
+
+                function pauseTheGame() {
+                    isPaused = true;
+                    clearInterval(speed);
+                }
+                function continueTheGame() {
+                    isPaused = false;
+                    speed = setInterval(moveSnakeLoop, (500 / (1 + (0,01 * score))));
+                }
+
+                function createTheDot() {
+                    let tempCoords = randomEmptyCoordinates();
+                    theDot = new BlockToEat(tempCoords[0], tempCoords[1]);
+                }
+                function moveTheDot() {
+                    let moveTo = randomEmptyCoordinates();
+                    score++;
+                    theDot.x = moveTo[0];
+                    theDot.y = moveTo[1];
+                    scoreCounter.textContent = `Score: ${score}`;
+                }
+
+                function randomEmptyCoordinates() {
+                    let x = (Math.floor(Math.random() * 60)) * 10;
+                    let y = (Math.floor(Math.random() * 60)) * 10;
+                    let again = false;
+
+                    for (let i = 0; i < snake.length; i++) {
+                        if (snake[i].x === x && snake[i].y === y) {
+                            again = true;
+                            break;
+                        }
+                    }
+
+                    if (again === true) {
+                        randomEmptyCoordinates();
+                    } else {
+                        return [x, y];
+                    }
+                }
+                
+                addEventListener('keydown', function (event) {
+                    if (event.code === 'KeyE' && isInTitleScreen === true) {
+                        isInTitleScreen = false;
+                        startGame();
+                    }
+                    if (isInGame === true) {
+                        if (event.code === 'KeyW' && snake[0].heading === 'right' && 
+                        isPaused === false || event.code === 'KeyW' && 
+                        snake[0].heading === 'left' && isPaused === false) {
+                            nextHeading = 'up';
+                        } else if (event.code === 'KeyD' && snake[0].heading === 'up' && 
+                        isPaused === false || event.code === 'KeyD' && 
+                        snake[0].heading === 'down' && isPaused === false) {
+                            nextHeading = 'right';
+                        } else if (event.code === 'KeyS' && snake[0].heading === 'right' && 
+                        isPaused === false || event.code === 'KeyS' && 
+                        snake[0].heading === 'left' && isPaused === false) {
+                            nextHeading = 'down';
+                        } else if (event.code === 'KeyA' && snake[0].heading === 'up' && 
+                        isPaused === false || event.code === 'KeyA' && 
+                        snake[0].heading === 'down' && isPaused === false) {
+                            nextHeading = 'left';
+                        } else if (event.code === 'KeyR' && collisionDetected === false) {
+                            isPaused ? continueTheGame() : pauseTheGame();
+                        } else if (event.code === 'KeyT' && collisionDetected === true) {
+                            initialState();
+                        }
+                    } 
+                });
+
+                function initialState() {
+                    ctx.font = '48px castellar';
+                    ctx.fillStyle = 'green';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('SNAKE', 300, 240);
+                    ctx.font = '28px castellar';
+                    ctx.fillText('Press E to start a new game!', 300, 320);
+                    ctx.fillText('WASD to move, R to pause', 300, 380);
+                    ctx.fillText('T to restart after collision', 300, 420);
+                    isInTitleScreen = true;
+                    isInGame = false;
+                    isPaused = false;
+                    collisionDetected = false;
+                }
+                initialState();
+
+                //Following functions are for drawing the head of the snake.
+                //First design is commented out.
+                function drawHeadUp(x, y) {
+                    ctx.fillStyle = 'red';
+                    ctx.beginPath();
+                    /*ctx.moveTo(5+x, 0+y);
+                    ctx.lineTo(6+x, 1+y);
+                    ctx.lineTo(6+x, 2+y);
+                    ctx.lineTo(8+x, 3+y);
+                    ctx.lineTo(8+x, 4+y);
+                    ctx.lineTo(9+x, 5+y);
+                    ctx.lineTo(9+x, 9+y);
+                    ctx.lineTo(0+x, 9+y);
+                    ctx.lineTo(0+x, 5+y);
+                    ctx.lineTo(1+x, 4+y);
+                    ctx.lineTo(1+x, 3+y);
+                    ctx.lineTo(3+x, 2+y);
+                    ctx.lineTo(3+x, 1+y);
+                    ctx.lineTo(4+x, 0+y);*/
+                    ctx.moveTo(5+x, 0+y);
+                    ctx.lineTo(6+x, 1+y);
+                    ctx.lineTo(7+x, 2+y);
+                    ctx.lineTo(8+x, 3+y);
+                    ctx.lineTo(9+x, 4+y);
+                    ctx.lineTo(9+x, 5+y);
+                    ctx.lineTo(10+x, 6+y);
+                    ctx.lineTo(10+x, 10+y);
+                    ctx.lineTo(0+x, 10+y);
+                    ctx.lineTo(0+x, 6+y);
+                    ctx.lineTo(1+x, 5+y);
+                    ctx.lineTo(1+x, 4+y);
+                    ctx.lineTo(2+x, 3+y);
+                    ctx.lineTo(3+x, 2+y);
+                    ctx.lineTo(4+x, 1+y);
+                    ctx.fill();
+                }
+                function drawHeadRight(x, y) {
+                    ctx.fillStyle = 'red';
+                    ctx.beginPath();
+                    /*ctx.moveTo(9+x, 4+y);
+                    ctx.lineTo(9+x, 5+y);
+                    ctx.lineTo(8+x, 6+y);
+                    ctx.lineTo(7+x, 6+y);
+                    ctx.lineTo(6+x, 8+y);
+                    ctx.lineTo(5+x, 8+y);
+                    ctx.lineTo(4+x, 9+y);
+                    ctx.lineTo(0+x, 9+y);
+                    ctx.lineTo(0+x, 0+y);
+                    ctx.lineTo(4+x, 0+y);
+                    ctx.lineTo(5+x, 1+y);
+                    ctx.lineTo(6+x, 1+y);
+                    ctx.lineTo(7+x, 3+y);
+                    ctx.lineTo(8+x, 3+y);*/
+                    ctx.moveTo(10 + x, 5 + y);
+                    ctx.lineTo(9 + x, 6 + y);
+                    ctx.lineTo(8 + x, 7 + y);
+                    ctx.lineTo(7 + x, 8 + y);
+                    ctx.lineTo(6 + x, 9 + y);
+                    ctx.lineTo(5 + x, 9 + y);
+                    ctx.lineTo(4 + x, 10 + y);
+                    ctx.lineTo(0 + x, 10 + y);
+                    ctx.lineTo(0 + x, 0 + y);
+                    ctx.lineTo(4 + x, 0 + y);
+                    ctx.lineTo(5 + x, 1 + y);
+                    ctx.lineTo(6 + x, 1 + y);
+                    ctx.lineTo(7 + x, 2 + y);
+                    ctx.lineTo(8 + x, 3 + y);
+                    ctx.lineTo(9 + x, 4 + y);
+                    ctx.fill();
+                }
+                function drawHeadDown(x, y) {
+                    ctx.fillStyle = 'red';
+                    ctx.beginPath();
+                    /*ctx.moveTo(5+x, 9+y);
+                    ctx.lineTo(4+x, 9+y);
+                    ctx.lineTo(3+x, 8+y);
+                    ctx.lineTo(3+x, 7+y);
+                    ctx.lineTo(1+x, 6+y);
+                    ctx.lineTo(1+x, 5+y);
+                    ctx.lineTo(0+x, 4+y);
+                    ctx.lineTo(0+x, 0+y);
+                    ctx.lineTo(9+x, 0+y);
+                    ctx.lineTo(9+x, 4+y);
+                    ctx.lineTo(8+x, 5+y);
+                    ctx.lineTo(8+x, 6+y);
+                    ctx.lineTo(6+x, 7+y);
+                    ctx.lineTo(6+x, 8+y);*/
+                    ctx.moveTo(5 + x, 10 + y);
+                    ctx.lineTo(4 + x, 9 + y);
+                    ctx.lineTo(3 + x, 8 + y);
+                    ctx.lineTo(2 + x, 7 + y);
+                    ctx.lineTo(1 + x, 6 + y);
+                    ctx.lineTo(1 + x, 5 + y);
+                    ctx.lineTo(0 + x, 4 + y);
+                    ctx.lineTo(0 + x, 0 + y);
+                    ctx.lineTo(10 + x, 0 + y);
+                    ctx.lineTo(10 + x, 4 + y);
+                    ctx.lineTo(9 + x, 5 + y);
+                    ctx.lineTo(9 + x, 6 + y);
+                    ctx.lineTo(8 + x, 7 + y);
+                    ctx.lineTo(7 + x, 8 + y);
+                    ctx.lineTo(6 + x, 9 + y);
+                    ctx.fill();
+                }
+                function drawHeadLeft(x, y) {
+                    ctx.fillStyle = 'red';
+                    ctx.beginPath();
+                    /*ctx.moveTo(0+x, 5+y);
+                    ctx.lineTo(0+x, 4+y);
+                    ctx.lineTo(1+x, 3+y);
+                    ctx.lineTo(2+x, 3+y);
+                    ctx.lineTo(3+x, 1+y);
+                    ctx.lineTo(4+x, 1+y);
+                    ctx.lineTo(5+x, 0+y);
+                    ctx.lineTo(9+x, 0+y);
+                    ctx.lineTo(9+x, 9+y);
+                    ctx.lineTo(5+x, 9+y);
+                    ctx.lineTo(4+x, 8+y);
+                    ctx.lineTo(3+x, 8+y);
+                    ctx.lineTo(2+x, 6+y);
+                    ctx.lineTo(1+x, 6+y);*/
+                    ctx.moveTo(0 + x, 5 + y);
+                    ctx.lineTo(1 + x, 4 + y);
+                    ctx.lineTo(2 + x, 3 + y);
+                    ctx.lineTo(3 + x, 2 + y);
+                    ctx.lineTo(4 + x, 1 + y);
+                    ctx.lineTo(5 + x, 1 + y);
+                    ctx.lineTo(6 + x, 0 + y);
+                    ctx.lineTo(10 + x, 0 + y);
+                    ctx.lineTo(10 + x, 10 + y);
+                    ctx.lineTo(6 + x, 10 + y);
+                    ctx.lineTo(5 + x, 9 + y);
+                    ctx.lineTo(4 + x, 9 + y);
+                    ctx.lineTo(3 + x, 8 + y);
+                    ctx.lineTo(2 + x, 7 + y);
+                    ctx.lineTo(1 + x, 6 + y);
+                    ctx.fill();
+                }
+                function drawBody(x, y) {
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(x, y, 10, 10);
+                }
+                function drawTail(x, y) {
+                    ctx.fillStyle = 'green';
+                    ctx.fillRect(x, y, 10, 10);
+                }
+                function drawTheDot(x, y) {
+                    ctx.fillStyle = 'orange';
+                    ctx.fillRect(x, y, 10, 10);
+                }
+
+                class BlockToEat {
+                    constructor(x, y) {
+                        this.x = x;
+                        this.y = y;
+                    }
+
+                    get x() {
+                        return this._x;
+                    }
+                    get y() {
+                        return this._y;
+                    }
+
+                    set x(newX) {
+                        this._x = newX;
+                    }
+                    set y(newY) {
+                        this._y = newY;
+                    }
+                }
+
+                class SnakePiece {
+                    constructor(x, y, heading, type) {
+                        this.x = x;
+                        this.y = y;
+                        this.heading = heading;
+                        this.type = type;
+                    }
+                    
+                    get x() {
+                        return this._x;
+                    }
+                    get y() {
+                        return this._y;
+                    }
+                    get heading() {
+                        return this._heading;
+                    }
+                    get type() {
+                        return this._type;
+                    }
+
+                    set x(newX) {
+                        this._x = newX;
+                    }
+                    set y(newY) {
+                        this._y = newY;
+                    }
+                    set heading(newHeading) {
+                        this._heading = newHeading;
+                    }
+                    set type(newType) {
+                        this._type = newType;
+                    }
+                }
+
+                function drawTheSnake(x, y, heading, type) {
+                    this.x = x;
+                    this.y = y;
+                    this.heading = heading;
+                    this.type = type;
+
+                    if (type === 'body') {
+                        drawBody(x, y);
+                    } else if (type === 'head') {
+                        switch (heading) {
+                            case 'right':
+                                drawHeadRight(x, y);
+                                break;
+                            case 'down':
+                                drawHeadDown(x, y);
+                                break;
+                            case 'left':
+                                drawHeadLeft(x, y);
+                                break;
+                            case 'up':
+                                drawHeadUp(x, y);
+                                break;
+                            default:
+                                console.log('Heading was ' + heading);
+                        }
+                    } else {
+                        drawTail(x, y);
+                    }
+                }
+
+                function update(x, y, heading, i) {
+                    this.x = x;
+                    this.y = y;
+                    this.heading = heading;
+                    this.i = i;
+                    //lengthOfSnake = snake.length;
+
+                    switch (i) {
+                        case 0:
+                            snake[i].heading = nextHeading;
+                            break;
+                        //case (lengthOfSnake - 1):
+                        //    snake[i].heading = snake[i - 1].heading;
+                        //    break;
+                        default:
+                            snake[i].heading = snake[(i - 1)].heading;
+                            break;
+                    }
+
+                    /*switch (heading) {
+                        case 'right':
+                            snake[i].x += 10;
+                            break;
+                        case 'down':
+                            snake[i].y += 10;
+                            break;
+                        case 'left':
+                            snake[i].x -= 10;
+                            break;
+                        case 'up':
+                            snake[i].y -= 10;
+                            break;
+                        default:
+                            console.log('In switch (heading) heading was ' + heading);
+                            break;
+                    }*/
+
+                    switch (i) {
+                        case 0:
+                            switch (heading) {
+                                case 'right':
+                                    snake[0].x += 10;
+                                    break;
+                                case 'down':
+                                    snake[0].y += 10;
+                                    break;
+                                case 'left':
+                                    snake[0].x -= 10;
+                                    break;
+                                case 'up':
+                                    snake[0].y -= 10;
+                                    break;
+                                default:
+                                    console.log('In switch (heading) heading was ' + heading);
+                                    break;
+                            }
+                            break;
+                        default:
+                            snake[i].x = snake[(i - 1)].x;
+                            snake[i].y = snake[(i - 1)].y;
+                            break;
+                    }
+                }
+
+                function collisionDetection(x, y) {
+                    this.x = x;
+                    this.y = y;
+
+                    if (snake[0].x < 0 || snake[0].x > 599 || snake[0].y < 0 || snake[0].y > 599) {
+                        return collisionDetected = true; 
+                    }
+
+                    for (let j = 4; j < lengthOfSnake; j++) {
+                        if (snake[j].x === snake[0].x && snake[j].y === snake[0].y) {
+                            return collisionDetected = true;
+                            break;
+                        }
+                    }
+                }
+
+                function moveSnakeLoop() {
+                    //let startTime = Date.now();
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    drawTheDot(theDot.x, theDot.y);
+                    lengthOfSnake = snake.length;
+
+                    //Compact, but updates every block from tail to head.
+                    /*for (let i = (lengthOfSnake - 1); i > -1; i--) {
+                        update(snake[i].x, snake[i].y, snake[i].heading, i);
+                        drawTheSnake(snake[i].x, snake[i].y, snake[i].heading, snake[i].type);                          
+                    }*/
+
+
+                    //This is how the snake functions normally, but if you want to see how the pieces move
+                    //in the snake, comment the following section and uncomment the section after this one.
+                    snake.at(-1).x = snake.at(-2).x;
+                    snake.at(-1).y = snake.at(-2).y;
+                    snake.at(-2).x = snake.at(0).x;
+                    snake.at(-2).y = snake.at(0).y;
+                    let pieceToMove = snake.at(-2);
+                    snake.splice(-2, 1);
+                    snake.splice(1, 0, pieceToMove);
+                    update(snake[0].x, snake[0].y, snake[0].heading, 0);
+                    snake.forEach(snake => drawTheSnake(snake.x, snake.y, snake.heading, snake.type));
+
+                    //Displays how pieces in the snake move
+                    /*snake.at(-1).x = snake.at(0).x;
+                    snake.at(-1).y = snake.at(0).y;
+                    let pieceToMove = snake.at(-1);
+                    snake.splice(-1, 1);
+                    snake.splice(1, 0, pieceToMove);
+                    update(snake[0].x, snake[0].y, snake[0].heading, 0);
+                    snake.forEach(snake => drawTheSnake(snake.x, snake.y, snake.heading, snake.type));*/
+                    
+                    collisionDetection(snake[0].x, snake[0].y);
+                    if (collisionDetected === true) {
+                        clearInterval(speed);
+                        //console.log('Käärmeen pään x = ' + snake[0].x + ' ja y = ' + snake[0].y);
+                    }
+                    if (snake[0].x === theDot.x && snake[0].y === theDot.y) {
+                        moveTheDot();
+                        let snakePieceToAdd = new SnakePiece(snake.at(-2).x, 
+                        snake.at(-2).y, snake.at(-2).heading, 'body');
+
+                        snake.splice(-2, 0, snakePieceToAdd);
+                        clearInterval(speed);
+                        speed = setInterval(moveSnakeLoop, (500 / ( 1 + (0,01 * score))));
+                    }
+                    //console.log(`Aikaa kului ${Date.now() - startTime} millisekuntia.`);
+                }
+            } else {
+                    console.log('hmmm...');
+            }
+        }        
+    </script>
+</body>
+</html>
